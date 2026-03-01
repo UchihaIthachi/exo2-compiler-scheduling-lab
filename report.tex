@@ -1,0 +1,307 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\hypertarget{dependency-analysis-and-scheduling-exo-2-report}{%
+\section{Dependency Analysis and Scheduling --- Exo 2
+(Report)}\label{dependency-analysis-and-scheduling-exo-2-report}}
+
+\textbf{Task:} In21-S8-CS4553 --- Dependency Analysis And Scheduling
+(Not graded)\\
+\textbf{Paper Focus:} ``Exo 2: Growing a Scheduling Language'' (Appendix
+A scheduling primitives)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{the-separation-of-semantics-and-scheduling-in-exo-2}{%
+\subsection{1. The Separation of Semantics and Scheduling in Exo
+2}\label{the-separation-of-semantics-and-scheduling-in-exo-2}}
+
+Usually, compilers aggressively optimize source code. If a target
+architecture has specific features such as vector extensions or custom
+accelerators, a traditional compiler often re-organizes the source code
+to utilize these extensions under the hood without changing the
+semantics of the program. However, ensuring high performance often
+requires intricate tuning that standard compilers struggle to safely
+automate.
+
+Exo 2 is a domain-specific scheduling language that decouples these two
+aspects into distinct components: 1. \textbf{Semantics / Logic:} The
+clean, reference kernel representing the fundamental algorithm. 2.
+\textbf{Scheduling:} A sequence of user-defined, verified, and
+semantics-preserving rewrites that target specific hardware performance
+characteristics (e.g., SIMD, multithreading).
+
+By doing this, engineers can iterate aggressively on performance without
+risking the fundamental correctness of the algorithmic semantics.
+
+Appendix A of the Exo 2 paper classifies scheduling primitives into 8
+distinct categories, each designed to manipulate loops, memory, and
+procedure calls safely.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{step-1-scheduling-primitive-categories-appendix-a}{%
+\subsection{2. Step 1 --- Scheduling Primitive Categories (Appendix
+A)}\label{step-1-scheduling-primitive-categories-appendix-a}}
+
+\hypertarget{a.1-loop-transformations}{%
+\subsubsection{A.1 Loop
+Transformations}\label{a.1-loop-transformations}}
+
+\textbf{Primitives:} \texttt{reorder\_loops}, \texttt{divide\_loop},
+\texttt{divide\_with\_recompute}, \texttt{mult\_loops},
+\texttt{cut\_loop}, \texttt{join\_loops}, \texttt{shift\_loop},
+\texttt{fission}, \texttt{remove\_loop}, \texttt{add\_loop},
+\texttt{unroll\_loop}\\
+\textbf{Technique:} The goal is to reshape the overall iteration space
+by safely splitting, tiling, interchanging, unrolling, separating
+(fission), or merging (join) loops.\\
+\textbf{Performance Gain:} This shapes the loops to map efficiently onto
+specific hardware topologies. It naturally uncovers SIMD-width data
+streams for the innermost loops, exposes coarse thread-level parallelism
+via parallelized outer loops (pthreads), and supports complex blocking
+strategies suited for GPU memory hierarchies.
+
+\hypertarget{a.2-code-rearrangement}{%
+\subsubsection{A.2 Code Rearrangement}\label{a.2-code-rearrangement}}
+
+\textbf{Primitives:} \texttt{reorder\_stmts}, \texttt{commute\_expr}\\
+\textbf{Technique:} Rearranging independent mathematical statements or
+leveraging algebraic commutativity rules.\\
+\textbf{Performance Gain:} This effectively mitigates artificial data
+dependencies. By shifting instructions, compilers can form denser
+patterns suitable for instruction replacement or advanced vectorization
+schemas.
+
+\hypertarget{a.3-scope-transformations}{%
+\subsubsection{A.3 Scope
+Transformations}\label{a.3-scope-transformations}}
+
+\textbf{Primitives:} \texttt{specialize}, \texttt{fuse},
+\texttt{lift\_scope}\\
+\textbf{Technique:} Restructuring or relocating entire control scopes
+safely.\\
+\textbf{Performance Gain:} Scope fusion significantly increases cache
+locality. Specialization eradicates redundant conditional checks by
+resolving overhead at compile time when specific constraints are
+mathematically proven. Scope lifting resolves complex nesting structures
+introduced post-tiling operations.
+
+\hypertarget{a.4-multiple-procedures}{%
+\subsubsection{A.4 Multiple Procedures}\label{a.4-multiple-procedures}}
+
+\textbf{Primitives:} \texttt{inline}, \texttt{replace},
+\texttt{call\_eqv}, \texttt{extract\_subproc}\\
+\textbf{Technique:} Executing inter-procedural optimizations, custom
+instruction selection mappings, or isolating specific algorithm subsets
+into sub-kernels.\\
+\textbf{Performance Gain:} The key component of micro-kernel design,
+this allows developers to systematically replace slow scalar loops with
+heavily optimized hardware vector intrinsics (such as AVX2).
+Furthermore, it allows substituting equivalent routines while ensuring
+complete semantic parity.
+
+\hypertarget{a.5-buffer-transformations}{%
+\subsubsection{A.5 Buffer
+Transformations}\label{a.5-buffer-transformations}}
+
+\textbf{Primitives:} \texttt{lift\_alloc}, \texttt{sink\_alloc},
+\texttt{delete\_buffer}, \texttt{reuse\_buffer}, \texttt{resize\_dim},
+\texttt{expand\_dim}, \texttt{rearrange\_dim}, \texttt{divide\_dim},
+\texttt{mult\_dim}, \texttt{unroll\_buffer}, \texttt{bind\_expr},
+\texttt{stage\_mem}\\
+\textbf{Technique:} Modifying buffer allocation locations, altering
+underlying dimensionality, shapes, or data layouts, and staging memory
+windows directly into hardware temporary registers.\\
+\textbf{Performance Gain:} Critical for enforcing strict cache and
+shared-memory tiling behaviors (via \texttt{stage\_mem}). It ensures
+arrays fit perfectly within constrained register spaces (\texttt{expand}
+or \texttt{divide}). Decreases the general application memory footprint
+(\texttt{sink} combined with \texttt{resize}) and drastically improves
+efficiency by guaranteeing the reuse of buffers across distinct
+operational lifetimes.
+
+\hypertarget{a.6-simplification}{%
+\subsubsection{A.6 Simplification}\label{a.6-simplification}}
+
+\textbf{Primitives:} \texttt{simplify}, \texttt{eliminate\_dead\_code},
+\texttt{rewrite\_expr}, \texttt{merge\_writes}, \texttt{inline\_window},
+\texttt{inline\_assign}\\
+\textbf{Technique:} Streamlining loops to clean up excessive overhead
+generated strictly from the preceding transformation steps.\\
+\textbf{Performance Gain:} Results in tighter, streamlined generated
+code. It directly eradicates structurally redundant loads, duplicate
+writes, or dead-code paths.
+
+\hypertarget{a.7-backend-checked-annotations}{%
+\subsubsection{A.7 Backend-Checked
+Annotations}\label{a.7-backend-checked-annotations}}
+
+\textbf{Primitives:} \texttt{set\_memory}, \texttt{set\_precision},
+\texttt{parallelize\_loop}, \texttt{set\_window}\\
+\textbf{Technique:} Explicitly adding precise data annotations that the
+backend compiler code generator natively verifies.\\
+\textbf{Performance Gain:} It actively guarantees that loops selected
+for multi-threading are strictly memory-safe for parallel execution. The
+annotations are also essential for forcing specific SIMD intrinsics,
+correctly aligning precision types, and guaranteeing strict hardware ABI
+correctness.
+
+\hypertarget{a.8-configuration-state}{%
+\subsubsection{A.8 Configuration State}\label{a.8-configuration-state}}
+
+\textbf{Primitives:} \texttt{bind\_config}, \texttt{delete\_config},
+\texttt{write\_config}\\
+\textbf{Technique:} Directly scheduling the underlying configuration
+state writes strictly geared toward stateful hardware accelerators.\\
+\textbf{Performance Gain:} Heavily reduces structural state overhead by
+successfully hoisting out generic configuration setup phases and
+eliminating duplicated or redundant state writes occurring entirely
+within the innermost hardware loop limits.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{step-2-install-exo-and-run-examples}{%
+\subsection{3. Step 2 --- Install Exo and run
+examples}\label{step-2-install-exo-and-run-examples}}
+
+\hypertarget{install-pip}{%
+\subsubsection{Install (pip)}\label{install-pip}}
+
+pip install exo-lang
+
+\hypertarget{or-build-from-source}{%
+\subsubsection{Or build from source}\label{or-build-from-source}}
+
+git clone https://github.com/exo-lang/exo.git cd exo git submodule
+update --init --recursive python -m venv \textasciitilde/.venv/exo
+source \textasciitilde/.venv/exo/bin/activate python -m pip install -U
+pip setuptools wheel python -m pip install -r requirements.txt python -m
+build . pip install dist/*.whl
+
+Run quizzes: - exo/examples/quiz1: exocc quiz1.py - exo/examples/quiz2:
+exocc quiz2.py - exo/examples/quiz3: exocc quiz3.py
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{step-3-quiz-scenarios-and-solutions}{%
+\subsection{4. Step 3 --- Quiz Scenarios and
+Solutions}\label{step-3-quiz-scenarios-and-solutions}}
+
+The following are descriptions of the issues encountered in the provided
+scheduling quizzes, along with analyses of the incorrect approaches and
+the verified, correct solutions.
+
+\hypertarget{quiz-1-avx2-replacement-not-occurring}{%
+\subsubsection{Quiz 1 --- AVX2 Replacement Not
+Occurring}\label{quiz-1-avx2-replacement-not-occurring}}
+
+\textbf{Issue:} The generated schedule correctly mimics the structure of
+SIMD vector code but fails to invoke the underlying hardware vector
+intrinsics. It is still executing scalar operations one element at a
+time. \textbf{Incorrect Approach:} Invoking the
+\texttt{replace\_all(p,\ avx\_instrs)} schedule directive \emph{before}
+correctly defining the memory topology of the target staged buffers.
+\textbf{Correct Solution:} The \texttt{replace\_all} function in Exo is
+memory-aware. Therefore, you must invoke
+\texttt{set\_memory(p,\ f"\{name\}\_vec",\ AVX2)} on all intermediate
+buffer arrays before performing the replacement. Once the memory context
+is explicitly \texttt{AVX2}, the compiler pattern-matches and replaces
+the statements with the correct \texttt{\_mm256\_*} intrinsic mappings.
+\textbf{Source:} \texttt{solutions/quiz1\_solution.py}
+
+\hypertarget{quiz-2-schedulingerror-during-loop-fission}{%
+\subsubsection{Quiz 2 --- SchedulingError During Loop
+Fission}\label{quiz-2-schedulingerror-during-loop-fission}}
+
+\textbf{Issue:} The compiler throws a \texttt{SchedulingError} stating
+``Will not fission here, because doing so will hide the allocation of
+vec from a later use site.'' \textbf{Incorrect Approach:} Utilizing a
+single loop iteration to immediately perform \texttt{expand\_dim},
+\texttt{lift\_alloc}, and \texttt{fission} sequentially for each
+temporary array. This hides the earlier allocations from subsequent uses
+because the memory allocations remain trapped within the split loop
+bodies. \textbf{Correct Solution:} Refactoring the scheduling code to
+operate in a 2-pass schema. First, loop over the structures and run
+\texttt{expand\_dim} and \texttt{lift\_alloc} on all temporary
+allocations to safely hoist them outside the computation context.
+Secondly, safely run a subsequent loop to \texttt{fission} the
+individual assignment operations. \textbf{Source:}
+\texttt{solutions/quiz2\_solution.py}
+
+\hypertarget{quiz-3-blur_x-width-fails-to-shrink}{%
+\subsubsection{\texorpdfstring{Quiz 3 --- \texttt{blur\_x} Width Fails
+to
+Shrink}{Quiz 3 --- blur\_x Width Fails to Shrink}}\label{quiz-3-blur_x-width-fails-to-shrink}}
+
+\textbf{Issue:} While attempting to tile a blur operation, the scheduler
+successfully shrinks the overall allocation height dimension to 34 but
+entirely fails to dynamically reduce the width mapping down to 256.
+\textbf{Incorrect Approach:} The helper function
+\texttt{get\_loops\_at\_or\_above(cursor)} initializes its traversal
+collection as \texttt{loops\ =\ {[}{]}}. This fundamentally omits the
+initial underlying cursor (the innermost \texttt{xo} loop).
+Consequently, the intermediate array allocation is never sunk deep
+enough into the \texttt{xo} scope. \textbf{Correct Solution:} Modifying
+the initialization definition to \texttt{loops\ =\ {[}cursor{]}}
+correctly captures the \texttt{xo} loop mapping inside the traversal
+collection. This allows the allocation to gracefully sink into the
+correct inner tile representation, reducing the active layout
+requirements perfectly down to \texttt{{[}34,\ 256{]}}. \textbf{Source:}
+\texttt{solutions/quiz3\_solution.py}
+
+\end{document}
